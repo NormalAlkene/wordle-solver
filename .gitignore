@@ -1,0 +1,8 @@
+temp/
+build/
+
+__pycache__/
+*.py[cod]
+.venv/
+.python-version
+*.egg-info/
