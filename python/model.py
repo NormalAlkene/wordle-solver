@@ -52,10 +52,10 @@ class Clue:
 
     def __init__(self, word: Word, clue: str | NDArray[np.uint32] | list[int]):
         self.word = word
-        if isinstance(clue, NDArray):
+        if isinstance(clue, np.ndarray):
             self.clue = clue
         elif isinstance(clue, str):
-            if len(clue.strip()) != len(word)):
+            if len(clue.strip()) != len(word):
                 raise ValueError(f"The length of clue string \"{clue}\" must be the same as of word")
             np.array([int(it) for it in list(clue)])
 
@@ -126,8 +126,8 @@ class State:
             return False
 
         # 2. Check count
-        sums = np.bincount(target.word, minlength=self.alphabet_num())
-        if np.any(sums < self._min_counts) or np.any(sums > self._max_counts):
+        # sums = np.bincount(target.word, minlength=self.alphabet_num())
+        if np.any(target.bincount < self._min_counts) or np.any(target.bincount > self._max_counts):
             return False
 
         return True

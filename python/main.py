@@ -16,7 +16,7 @@ def load_words(path: str) -> set[Word]:
 def get_valid(state: State, words: set[Word]) -> set[Word]:
     return {it for it in words if state.check(it)}
 
-@njit
+#@njit
 def pick_words(
     state: State,
     answer_candidates: set[Word],
@@ -29,7 +29,6 @@ def pick_words(
     heapq.heapify(ret)
 
     for i, it in enumerate(words):
-        print(f"Checking {it}")
         total_valid_count = 0
         clues: dict[Clue, int] = {} # Clue, weight
 
@@ -48,6 +47,7 @@ def pick_words(
                     cur_valid_count += 1
             total_valid_count += cur_valid_count * weight
         heapq.heappushpop(ret, (total_valid_count / len(answer_candidates), it))
+        print(f"{it}: {total_valid_count / len(answer_candidates)}")
 
     return ret
 
