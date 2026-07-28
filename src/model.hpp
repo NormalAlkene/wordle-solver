@@ -185,6 +185,8 @@ Clue<LENGTH, ALPHABET_NUM>::Clue(
 {
     this->_word = guess;
     this->_clue.fill(ClueType::CLUE_GRAY);
+    std::array<uint32_t, ALPHABET_NUM> temp_bincount;
+    std::ranges::copy(answer.bincount(), temp_bincount.begin());
 
     // 1. Green
     for (auto i = 0u; i < LENGTH; ++i)
@@ -192,12 +194,11 @@ Clue<LENGTH, ALPHABET_NUM>::Clue(
         if (guess[i] == answer[i])
         {
             this->_clue[i] = ClueType::CLUE_GREEN;
+            --temp_bincount[guess[i]];
         }
     }
 
     // 2. Yellow
-    std::array<uint32_t, ALPHABET_NUM> temp_bincount;
-    std::ranges::copy(answer.bincount(), temp_bincount.begin());
     for (auto i = 0u; i < LENGTH; ++i)
     {
         if (this->_clue[i] == CLUE_GRAY && temp_bincount[guess[i]] > 0)

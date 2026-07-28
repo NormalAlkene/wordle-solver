@@ -14,7 +14,7 @@
 constexpr size_t WORD_LENGTH = 5u;
 constexpr size_t ALPHABET_NUM = 26u;
 constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
-constexpr uint32_t TOP_K = 20u;
+constexpr uint32_t TOP_K = 10u;
 
 using std::span;
 using std::pair;
@@ -27,7 +27,7 @@ using WordT = Word<WORD_LENGTH, ALPHABET_NUM>;
 using ClueT = Clue<WORD_LENGTH, ALPHABET_NUM>;
 using StateT = State<WORD_LENGTH, ALPHABET_NUM>;
 
-vector<WordT> load_words(const char * path)
+vector<WordT> load_words(const std::string &path)
 {
     std::ifstream file(path);
     vector<WordT> ret{};
@@ -46,22 +46,22 @@ vector<WordT> load_words(const char * path)
     return ret;
 }
 
-priority_queue<pair<double, WordT>> pick_words(
+priority_queue<pair<size_t, WordT>> pick_words(
     const StateT &state,
     span<const WordT> answer_candidates,
     span<const WordT> words,
     size_t top_k = 1)
 {
-    priority_queue<pair<double, WordT>> ret{};
+    priority_queue<pair<size_t, WordT>> ret{};
     for (auto i = 0u; i < top_k; ++i)
     {
-        ret.emplace((double)answer_candidates.size(), WordT{});
+        ret.emplace(answer_candidates.size() * answer_candidates.size(), WordT{});
     }
 #pragma omp parallel for 
     for (const auto &guess : words)
     {
         unordered_map<ClueT, size_t> clues{};
-        uint64_t expectation = 0.0;
+        uint64_t expectation = 0;
         for (const auto &answer : answer_candidates)
         {
             ++clues[Clue(guess, answer)];
@@ -79,8 +79,8 @@ priority_queue<pair<double, WordT>> pick_words(
         if (expectation > 0)
 #pragma omp critical
         {
-        ret.emplace((double)expectation / answer_candidates.size(), guess);
-        ret.pop();
+            ret.emplace(expectation, guess);
+            ret.pop();
         }
 #ifdef DEBUG
         std::cerr << guess.str() << ": " << expectation << std::endl;
@@ -89,11 +89,17 @@ priority_queue<pair<double, WordT>> pick_words(
     return ret;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
     using std::cin, std::cout, std::cerr, std::endl;
     cout << "Loading word list..." << endl;
-    auto words = load_words("./data/word_list.txt");
+    string word_list_path = "./data/word_list.txt";
+    if (argc > 1)
+    {
+        word_list_path = argv[1];
+    }
+
+    auto words = load_words(word_list_path);
     auto answer_candidates = vector(words);
 
     StateT state{};
@@ -106,7 +112,7 @@ int main(void)
         while (!suggestions.empty())
         {
             const auto &it = suggestions.top();
-            cout << it.second.str() << ": " << it.first << endl;
+            cout << it.second.str() << ": " << (double)it.first / answer_candidates.size() << endl;
             suggestions.pop();
         }
         string temp;
