@@ -2,6 +2,7 @@
 // #define DEBUG 1
 
 #include <omp.h>
+#include <cctype>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -92,7 +93,7 @@ priority_queue<pair<size_t, WordT>> pick_words(
 int main(int argc, char *argv[])
 {
     using std::cin, std::cout, std::cerr, std::endl;
-    cout << "Loading word list..." << endl;
+    cerr << "Loading word list..." << endl;
     string word_list_path = "./data/word_list.txt";
     if (argc > 1)
     {
@@ -105,22 +106,31 @@ int main(int argc, char *argv[])
     StateT state{};
     for (;;)
     {
-        cout << "Current count answer cadidates is: " << answer_candidates.size() << endl;
-        cout << "Calculating..." << endl;
+        // cerr << "Current count answer cadidates is: " << answer_candidates.size() << endl;
         auto suggestions = pick_words(state, answer_candidates, words, TOP_K);
-        cout << "Top " << TOP_K << " guess candidates:" << endl;
+        cerr << "Top " << TOP_K << " guess candidates:" << endl;
+        string guess_word;
         while (!suggestions.empty())
         {
             const auto &it = suggestions.top();
-            cout << it.second.str() << ": " << (double)it.first / answer_candidates.size() << endl;
+            cerr << it.second.str() << ": " << (double)it.first / answer_candidates.size() << endl;
+            guess_word = it.second.str();
             suggestions.pop();
         }
+        cerr << "Suggested word: ";
+        cout << guess_word << endl;
+
         string temp;
-        cout << "Guess: ";
+        cerr << "Guess or clue (if suggested word used): ";
         cin >> temp;
-        auto cur_clue = Clue(WordT(temp));
-        cout << " Clue: ";
-        cin >> temp;
+        if (isalpha(temp[0]))
+        {
+            guess_word = std::move(temp);
+            cerr << " Clue: ";
+            cin >> temp;
+        }
+        cerr << "Your guess is: " << guess_word << '(' << answer_candidates.size() << ')' << endl;
+        auto clue = Clue(WordT(guess_word));
         std::array<ClueType, WORD_LENGTH> clue_str;
         for (auto i = 0u; i < WORD_LENGTH; ++i)
         {
@@ -135,24 +145,24 @@ int main(int argc, char *argv[])
                     clue_str[i] = CLUE_GREEN;
                     break;
                 default:
-                    cout << "Warning: invalid clue char " << temp[i] << ".\n";
+                    cerr << "Warning: invalid clue char " << temp[i] << ".\n";
                     clue_str[i] = CLUE_GRAY;
             }
         }
-        cur_clue.set(clue_str);
-        state &= State(cur_clue);
+        clue.set(clue_str);
+        state &= State(clue);
         answer_candidates = 
             answer_candidates
             | std::views::filter( [&state](auto x){return state.check(x);})
             | std::ranges::to<vector>();
         if (answer_candidates.size() == 1)
         {
-            cout << "Answer: " << answer_candidates[0].str() << endl;
+            cerr << "Answer: " << answer_candidates[0].str() << endl;
             break;
         }
         else if (answer_candidates.size() == 0)
         {
-            cout << "No answer candidate left!" << endl;
+            cerr << "No answer candidate left!" << endl;
             break;
         }
     }
