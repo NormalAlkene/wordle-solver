@@ -1,6 +1,7 @@
 #include "model.hpp"
-#define DEBUG
+// #define DEBUG 1
 
+#include <omp.h>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -13,7 +14,7 @@
 constexpr size_t WORD_LENGTH = 5u;
 constexpr size_t ALPHABET_NUM = 26u;
 constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
-constexpr uint32_t TOP_K = 10u;
+constexpr uint32_t TOP_K = 20u;
 
 using std::span;
 using std::pair;
@@ -56,10 +57,11 @@ priority_queue<pair<double, WordT>> pick_words(
     {
         ret.emplace((double)answer_candidates.size(), WordT{});
     }
+#pragma omp parallel for 
     for (const auto &guess : words)
     {
         unordered_map<ClueT, size_t> clues{};
-        double expectation = 0.0;
+        uint64_t expectation = 0.0;
         for (const auto &answer : answer_candidates)
         {
             ++clues[Clue(guess, answer)];
@@ -72,10 +74,14 @@ priority_queue<pair<double, WordT>> pick_words(
             {
                 valid_count += new_state.check(it);
             }
-            expectation += (double)valid_count * weight / answer_candidates.size();
+            expectation += valid_count * weight;
         }
-        ret.emplace(expectation, guess);
+        if (expectation > 0)
+#pragma omp critical
+        {
+        ret.emplace((double)expectation / answer_candidates.size(), guess);
         ret.pop();
+        }
 #ifdef DEBUG
         std::cerr << guess.str() << ": " << expectation << std::endl;
 #endif // DEBUG
@@ -93,6 +99,7 @@ int main(void)
     StateT state{};
     for (;;)
     {
+        cout << "Current count answer cadidates is: " << answer_candidates.size() << endl;
         cout << "Calculating..." << endl;
         auto suggestions = pick_words(state, answer_candidates, words, TOP_K);
         cout << "Top " << TOP_K << " guess candidates:" << endl;
@@ -132,6 +139,16 @@ int main(void)
             answer_candidates
             | std::views::filter( [&state](auto x){return state.check(x);})
             | std::ranges::to<vector>();
+        if (answer_candidates.size() == 1)
+        {
+            cout << "Answer: " << answer_candidates[0].str() << endl;
+            break;
+        }
+        else if (answer_candidates.size() == 0)
+        {
+            cout << "No answer candidate left!" << endl;
+            break;
+        }
     }
     return 0;
 }

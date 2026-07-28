@@ -25,7 +25,6 @@ class Word
         bool operator==(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
         std::strong_ordering operator<=>(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
         uint32_t operator[](size_t index) const noexcept;
-        uint32_t& operator[](size_t index) noexcept;
 };
 
 template <size_t LENGTH, size_t ALPHABET_NUM>
@@ -156,12 +155,6 @@ std::strong_ordering Word<LENGTH, ALPHABET_NUM>::operator<=>(const Word &other) 
 
 template <size_t LENGTH, size_t ALPHABET_NUM>
 uint32_t Word<LENGTH, ALPHABET_NUM>::operator[](size_t index) const noexcept
-{
-    return this->_word[index];
-}
-
-template <size_t LENGTH, size_t ALPHABET_NUM>
-uint32_t& Word<LENGTH, ALPHABET_NUM>::operator[](size_t index) noexcept
 {
     return this->_word[index];
 }
@@ -301,6 +294,7 @@ State<LENGTH, ALPHABET_NUM>::State(const Clue<LENGTH, ALPHABET_NUM> &clue) noexc
                 this->_possible[i][cur_letter] = false;
                 this->_max_count[cur_letter] = this->_min_count[cur_letter];
                 break;
+            default:
         }
     }
     // TODO: is this correct?
