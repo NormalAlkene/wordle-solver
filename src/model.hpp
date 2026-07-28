@@ -17,9 +17,11 @@ class Word
         void _calc_bincount(void) noexcept;
 
     public:
+        explicit Word() noexcept = default;
         explicit Word(std::string_view str) noexcept;
         // explicit Word(std::span<const decltype(_word[0]), LENGTH> word) noexcept;
         std::span<const uint32_t, ALPHABET_NUM> bincount(void) const noexcept;
+        std::string str() const noexcept;
         bool operator==(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
         std::strong_ordering operator<=>(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
         uint32_t operator[](size_t index) const noexcept;
@@ -120,6 +122,17 @@ std::span<const uint32_t, ALPHABET_NUM> Word<LENGTH, ALPHABET_NUM>::bincount(voi
 }
 
 template <size_t LENGTH, size_t ALPHABET_NUM>
+std::string Word<LENGTH, ALPHABET_NUM>::str() const noexcept
+{
+    auto ret = std::string(LENGTH, 0u);
+    for (auto i = 0u; i < LENGTH; ++i)
+    {
+        ret[i] = this->_word[i] + 'a';
+    }
+    return ret;
+}
+
+template <size_t LENGTH, size_t ALPHABET_NUM>
 bool Word<LENGTH, ALPHABET_NUM>::operator==(const Word &other) const noexcept
 {
     for (auto i = 0u; i < LENGTH; ++i)
@@ -183,21 +196,21 @@ Clue<LENGTH, ALPHABET_NUM>::Clue(
     // 1. Green
     for (auto i = 0u; i < LENGTH; ++i)
     {
-        if (guess._word[i] == answer._word[i])
+        if (guess[i] == answer[i])
         {
             this->_clue[i] = ClueType::CLUE_GREEN;
         }
     }
 
     // 2. Yellow
-    uint32_t temp_bincount[ALPHABET_NUM];
-    this->_clue = answer.bincount();
+    std::array<uint32_t, ALPHABET_NUM> temp_bincount;
+    std::ranges::copy(answer.bincount(), temp_bincount.begin());
     for (auto i = 0u; i < LENGTH; ++i)
     {
-        if (this->_clue[i] == CLUE_GRAY && temp_bincount[guess._word[i]] > 0)
+        if (this->_clue[i] == CLUE_GRAY && temp_bincount[guess[i]] > 0)
         {
             this->_clue[i] = CLUE_YELLOW;
-            --temp_bincount[guess._word[i]];
+            --temp_bincount[guess[i]];
         }
     }
 }
@@ -205,7 +218,7 @@ Clue<LENGTH, ALPHABET_NUM>::Clue(
 template <size_t LENGTH, size_t ALPHABET_NUM>
 void Clue<LENGTH, ALPHABET_NUM>::set(std::span<ClueType, LENGTH> value) noexcept
 {
-    this->_clue = value;
+    std::ranges::copy(value, this->_clue.begin());
 }
 
 template <size_t LENGTH, size_t ALPHABET_NUM>

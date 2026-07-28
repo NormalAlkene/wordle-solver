@@ -1,22 +1,24 @@
 #include "model.hpp"
+#define DEBUG
 
-#include <fstream>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <unordered_map>
-#include <iostream>
 #include <vector>
 #include <queue>
+#include <ranges>
+#include <fstream>
+#include <iostream>
 
 constexpr size_t WORD_LENGTH = 5u;
 constexpr size_t ALPHABET_NUM = 26u;
 constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
 constexpr uint32_t TOP_K = 10u;
 
+using std::span;
+using std::pair;
 using std::vector;
 using std::string;
-using std::unordered_set;
 using std::unordered_map;
 using std::priority_queue;
 
@@ -43,8 +45,93 @@ vector<WordT> load_words(const char * path)
     return ret;
 }
 
+priority_queue<pair<double, WordT>> pick_words(
+    const StateT &state,
+    span<const WordT> answer_candidates,
+    span<const WordT> words,
+    size_t top_k = 1)
+{
+    priority_queue<pair<double, WordT>> ret{};
+    for (auto i = 0u; i < top_k; ++i)
+    {
+        ret.emplace((double)answer_candidates.size(), WordT{});
+    }
+    for (const auto &guess : words)
+    {
+        unordered_map<ClueT, size_t> clues{};
+        double expectation = 0.0;
+        for (const auto &answer : answer_candidates)
+        {
+            ++clues[Clue(guess, answer)];
+        }
+        for (const auto &[clue, weight] : clues)
+        {
+            auto new_state = state & State(clue);
+            size_t valid_count = 0;
+            for (const auto &it : words)
+            {
+                valid_count += new_state.check(it);
+            }
+            expectation += (double)valid_count * weight / answer_candidates.size();
+        }
+        ret.emplace(expectation, guess);
+        ret.pop();
+#ifdef DEBUG
+        std::cerr << guess.str() << ": " << expectation << std::endl;
+#endif // DEBUG
+    }
+    return ret;
+}
+
 int main(void)
 {
-    StateT s{};
+    using std::cin, std::cout, std::cerr, std::endl;
+    cout << "Loading word list..." << endl;
+    auto words = load_words("./data/word_list.txt");
+    auto answer_candidates = vector(words);
+
+    StateT state{};
+    for (;;)
+    {
+        cout << "Calculating..." << endl;
+        auto suggestions = pick_words(state, answer_candidates, words, TOP_K);
+        cout << "Top " << TOP_K << " guess candidates:" << endl;
+        while (!suggestions.empty())
+        {
+            const auto &it = suggestions.top();
+            cout << it.second.str() << ": " << it.first << endl;
+            suggestions.pop();
+        }
+        string temp;
+        cout << "Guess: ";
+        cin >> temp;
+        auto cur_clue = Clue(WordT(temp));
+        cout << " Clue: ";
+        cin >> temp;
+        std::array<ClueType, WORD_LENGTH> clue_str;
+        for (auto i = 0u; i < WORD_LENGTH; ++i)
+        {
+            switch (temp[i]) {
+                case '0':
+                    clue_str[i] = CLUE_GRAY;
+                    break;
+                case '1':
+                    clue_str[i] = CLUE_YELLOW;
+                    break;
+                case '2':
+                    clue_str[i] = CLUE_GREEN;
+                    break;
+                default:
+                    cout << "Warning: invalid clue char " << temp[i] << ".\n";
+                    clue_str[i] = CLUE_GRAY;
+            }
+        }
+        cur_clue.set(clue_str);
+        state &= State(cur_clue);
+        answer_candidates = 
+            answer_candidates
+            | std::views::filter( [&state](auto x){return state.check(x);})
+            | std::ranges::to<vector>();
+    }
     return 0;
 }
