@@ -12,7 +12,7 @@ class Word
 {
     private:
         std::array<uint32_t, LENGTH> _word{};
-        std::array<uint32_t, ALPHABET_NUM> _bincount{};
+        std::array<int32_t, ALPHABET_NUM> _bincount{};
 
         void _calc_bincount(void) noexcept;
 
@@ -20,7 +20,7 @@ class Word
         explicit Word() noexcept = default;
         explicit Word(std::string_view str) noexcept;
         // explicit Word(std::span<const decltype(_word[0]), LENGTH> word) noexcept;
-        std::span<const uint32_t, ALPHABET_NUM> bincount(void) const noexcept;
+        std::span<const int32_t, ALPHABET_NUM> bincount(void) const noexcept;
         std::string str() const noexcept;
         bool operator==(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
         std::strong_ordering operator<=>(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
@@ -69,12 +69,24 @@ class State
 {
     private:
         std::array<std::array<bool, ALPHABET_NUM>, LENGTH> _possible{};
-        std::array<size_t, ALPHABET_NUM>_min_count{};
-        std::array<size_t, ALPHABET_NUM>_max_count{};
+        std::array<int32_t, ALPHABET_NUM>_min_count{};
+        std::array<int32_t, ALPHABET_NUM>_max_count{};
     public:
         explicit State(void) noexcept;
         explicit State(const Clue<LENGTH, ALPHABET_NUM> &clue) noexcept;
         bool check(const Word<LENGTH, ALPHABET_NUM> &word) const noexcept;
+        const decltype(_possible) & get_possible_matrix() const noexcept
+        {
+            return _possible;
+        }
+        const decltype(_min_count) & get_min_count() const noexcept
+        {
+            return _min_count;
+        }
+        const decltype(_max_count) & get_max_count() const noexcept
+        {
+            return _max_count;
+        }
         State operator&(const State<LENGTH, ALPHABET_NUM> &other) const noexcept;
         State &operator&=(const State<LENGTH, ALPHABET_NUM> &other) noexcept;
         bool operator==(const State<LENGTH, ALPHABET_NUM> &other) const noexcept = default;
@@ -115,7 +127,7 @@ Word<LENGTH, ALPHABET_NUM>::Word(std::span<const decltype(_word[0]), LENGTH> wor
 */
 
 template <size_t LENGTH, size_t ALPHABET_NUM>
-std::span<const uint32_t, ALPHABET_NUM> Word<LENGTH, ALPHABET_NUM>::bincount(void) const noexcept
+std::span<const int32_t, ALPHABET_NUM> Word<LENGTH, ALPHABET_NUM>::bincount(void) const noexcept
 {
     return this->_bincount;
 }
@@ -185,7 +197,7 @@ Clue<LENGTH, ALPHABET_NUM>::Clue(
 {
     this->_word = guess;
     this->_clue.fill(ClueType::CLUE_GRAY);
-    std::array<uint32_t, ALPHABET_NUM> temp_bincount;
+    std::array<int32_t, ALPHABET_NUM> temp_bincount;
     std::ranges::copy(answer.bincount(), temp_bincount.begin());
 
     // 1. Green
@@ -240,7 +252,7 @@ size_t std::hash<Clue<LENGTH, ALPHABET_NUM>>::operator()(const Clue<LENGTH, ALPH
     size_t coefficient = 1u;
     for (auto i = 0u; i < LENGTH; ++i)
     {
-        ret += coefficient * ((size_t)object[i] + 1) * object.get_word()[i];
+        ret += coefficient * (static_cast<size_t>(object[i]) + 1) * object.get_word()[i];
         coefficient *= ALPHABET_NUM * 3;
     }
     return ret;
@@ -263,17 +275,18 @@ State<LENGTH, ALPHABET_NUM>::State(const Clue<LENGTH, ALPHABET_NUM> &clue) noexc
     // Green
     for (auto i = 0u; i < LENGTH; ++i)
     {
-        auto cur_letter = clue.get_word()[i];
         if (clue[i] == CLUE_GREEN)
         {
+            auto cur_letter = clue.get_word()[i];
             this->_possible[i].fill(false);
             this->_possible[i][cur_letter] = true;
             ++this->_min_count[cur_letter];
-            for (auto &it : this->_max_count)
-            {
-                --it;
-            }
             ++this->_max_count[cur_letter];
+            for (auto i = 0u; i < ALPHABET_NUM; ++i)
+            {
+                if (this->_max_count[i] > this->_min_count[i])
+                    --this->_max_count[i];
+            }
         }
     }
 
@@ -285,20 +298,21 @@ State<LENGTH, ALPHABET_NUM>::State(const Clue<LENGTH, ALPHABET_NUM> &clue) noexc
             case ClueType::CLUE_YELLOW:
                 this->_possible[i][cur_letter] = false;
                 ++this->_min_count[cur_letter];
-                for (auto &it : this->_max_count)
-                {
-                    --it;
-                }
                 ++this->_max_count[cur_letter];
+                for (auto i = 0u; i < ALPHABET_NUM; ++i)
+                {
+                    if (this->_max_count[i] > this->_min_count[i])
+                        --this->_max_count[i];
+                }
                 break;
             case ClueType::CLUE_GRAY:
                 this->_possible[i][cur_letter] = false;
                 this->_max_count[cur_letter] = this->_min_count[cur_letter];
                 break;
             default:
+                break;
         }
     }
-    // TODO: is this correct?
 }
 
 template <size_t LENGTH, size_t ALPHABET_NUM>
@@ -347,14 +361,14 @@ State<LENGTH, ALPHABET_NUM> &State<LENGTH, ALPHABET_NUM>::operator&=(const State
         this->_max_count[i] = std::min(this->_max_count[i], other._max_count[i]);
     }
 
-    auto sum = 0u;
+    int32_t sum = 0;
     for (const auto &it : this->_min_count)
     {
         sum += it;
     }
     for (auto i = 0u; i < ALPHABET_NUM; ++i)
     {
-        this->_max_count[i] = LENGTH - sum + this->_min_count[i];
+        this->_max_count[i] = std::min(static_cast<int32_t>(LENGTH) + this->_min_count[i] - sum, this->_max_count[i]);
     }
     // TODO: symmetric for min?
     return *this;

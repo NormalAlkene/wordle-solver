@@ -15,7 +15,8 @@
 constexpr size_t WORD_LENGTH = 5u;
 constexpr size_t ALPHABET_NUM = 26u;
 constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
-constexpr uint32_t TOP_K = 10u;
+constexpr size_t TOP_K = 5u;
+constexpr size_t SHOW_CANDIDATE_NUM = 20u;
 
 using std::span;
 using std::pair;
@@ -113,7 +114,7 @@ int main(int argc, char *argv[])
         while (!suggestions.empty())
         {
             const auto &it = suggestions.top();
-            cerr << it.second.str() << ": " << (double)it.first / answer_candidates.size() << endl;
+            cerr << it.second.str() << ": " << static_cast<double>(it.first) / answer_candidates.size() << endl;
             guess_word = it.second.str();
             suggestions.pop();
         }
@@ -155,6 +156,17 @@ int main(int argc, char *argv[])
             answer_candidates
             | std::views::filter( [&state](auto x){return state.check(x);})
             | std::ranges::to<vector>();
+
+        cerr << "Candidates (total " << answer_candidates.size() << "): ";
+        auto i = 0u;
+        for (const auto &it : answer_candidates)
+        {
+            if (i >= SHOW_CANDIDATE_NUM)
+                break;
+            cerr << it.str() << ' ';
+            ++i;
+        }
+        cerr << endl;
         if (answer_candidates.size() == 1)
         {
             cerr << "Answer: " << answer_candidates[0].str() << endl;
@@ -163,6 +175,42 @@ int main(int argc, char *argv[])
         else if (answer_candidates.size() == 0)
         {
             cerr << "No answer candidate left!" << endl;
+#ifdef DEBUG
+            cerr << "Current state is: \n\t_possible[][]: \n";
+            cerr << "  ";
+            for (auto i = 0; i < ALPHABET_NUM; ++i)
+            {
+                cerr << static_cast<char>('a' + i) << ' ';
+            }
+            cerr << endl;
+            auto i = 1;
+            for (const auto &it : state.get_possible_matrix())
+            {
+                cerr << i << ' ';
+                for (auto jt : it)
+                {
+                    cerr << static_cast<uint32_t>(jt) << ' ';
+                }
+                cerr << endl;
+                ++i;
+            }
+            cerr << endl;
+            for (auto i = 0; i < ALPHABET_NUM; ++i)
+            {
+                cerr << static_cast<char>('a' + i) << ' ';
+            }
+            cerr << endl;
+            for (const auto &it : state.get_min_count())
+            {
+                cerr << it << ' ';
+            }
+            cerr << endl;
+            for (const auto &it : state.get_max_count())
+            {
+                cerr << it << ' ';
+            }
+            cerr << endl;
+#endif
             break;
         }
     }
