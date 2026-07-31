@@ -370,7 +370,6 @@ State<LENGTH, ALPHABET_NUM> &State<LENGTH, ALPHABET_NUM>::operator&=(const State
     {
         this->_max_count[i] = std::min(static_cast<int32_t>(LENGTH) + this->_min_count[i] - sum, this->_max_count[i]);
     }
-    // TODO: symmetric for min?
     return *this;
 }
 

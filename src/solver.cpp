@@ -1,6 +1,10 @@
-#include "model.hpp"
 // #define DEBUG 1
 
+#include "model.hpp"
+#include "cache.hpp"
+
+#include <cstdint>
+#include <limits>
 #include <omp.h>
 #include <cctype>
 #include <string>
@@ -48,21 +52,21 @@ vector<WordT> load_words(const std::string &path)
     return ret;
 }
 
-priority_queue<pair<size_t, WordT>> pick_words(
+priority_queue<pair<uint64_t, WordT>> pick_words(
     const StateT &state,
     span<const WordT> answer_candidates,
     span<const WordT> words,
     size_t top_k = 1)
 {
-    priority_queue<pair<size_t, WordT>> ret{};
+    priority_queue<pair<uint64_t, WordT>> ret{};
     for (auto i = 0u; i < top_k; ++i)
     {
-        ret.emplace(answer_candidates.size() * answer_candidates.size(), WordT{});
+        ret.emplace(std::numeric_limits<uint64_t>::max(), WordT{});
     }
 #pragma omp parallel for 
     for (const auto &guess : words)
     {
-        unordered_map<ClueT, size_t> clues{};
+        unordered_map<ClueT, uint64_t> clues{};
         uint64_t expectation = 0;
         for (const auto &answer : answer_candidates)
         {
