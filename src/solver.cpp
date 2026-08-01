@@ -29,6 +29,8 @@ using std::string;
 using std::unordered_map;
 using std::priority_queue;
 
+using namespace wordle;
+
 using WordT = Word<WORD_LENGTH, ALPHABET_NUM>;
 using ClueT = Clue<WORD_LENGTH, ALPHABET_NUM>;
 using StateT = State<WORD_LENGTH, ALPHABET_NUM>;

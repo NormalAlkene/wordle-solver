@@ -5,6 +5,7 @@ project(WordleSolver)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(OpenMP_RUNTIME "LLVM")
 find_package(OpenMP REQUIRED)
@@ -37,7 +38,6 @@ target_compile_definitions(project_options INTERFACE
 include_directories(include)
 
 add_library(common OBJECT
-    src/priority_queue.cpp
     src/cache.cpp
 )
 

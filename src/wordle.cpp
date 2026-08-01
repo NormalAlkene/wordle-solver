@@ -5,9 +5,10 @@
 constexpr size_t WORD_LENGTH = 5u;
 constexpr size_t ALPHABET_NUM = 26u;
 
-using WordT = Word<WORD_LENGTH, ALPHABET_NUM>;
+using namespace wordle;
 
 using std::string;
+using WordT = Word<WORD_LENGTH, ALPHABET_NUM>;
 
 int main(int argc, char *argv[])
 {
