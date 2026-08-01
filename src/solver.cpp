@@ -2,6 +2,7 @@
 
 #include "model.hpp"
 #include "cache.hpp"
+#include "priority_queue.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -27,7 +28,7 @@ using std::pair;
 using std::vector;
 using std::string;
 using std::unordered_map;
-using std::priority_queue;
+//using std::priority_queue;
 
 using namespace wordle;
 
@@ -87,8 +88,7 @@ priority_queue<pair<uint64_t, WordT>> pick_words(
         if (expectation > 0)
 #pragma omp critical
         {
-            ret.emplace(expectation, guess);
-            ret.pop();
+            ret.pushpop(std::make_pair(expectation, guess));
         }
 #ifdef DEBUG
         std::cerr << guess.str() << ": " << expectation << std::endl;
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         auto suggestions = pick_words(state, answer_candidates, words, TOP_K);
         cerr << "Top " << TOP_K << " guess candidates:" << endl;
         string guess_word;
-        while (!suggestions.empty())
+        while (!suggestions.is_empty())
         {
             const auto &it = suggestions.top();
             cerr << it.second.str() << ": " << static_cast<double>(it.first) / answer_candidates.size() << endl;
