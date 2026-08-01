@@ -66,33 +66,42 @@ priority_queue<pair<uint64_t, WordT>> pick_words(
     {
         ret.emplace(std::numeric_limits<uint64_t>::max(), WordT{});
     }
-#pragma omp parallel for 
-    for (const auto &guess : words)
+#pragma omp parallel 
     {
-        unordered_map<ClueT, uint64_t> clues{};
-        uint64_t expectation = 0;
-        for (const auto &answer : answer_candidates)
+        decltype(ret) local_ret(ret);
+        for (auto i = 0u; i < top_k; ++i)
         {
-            ++clues[Clue(guess, answer)];
+            local_ret.emplace(std::numeric_limits<uint64_t>::max(), WordT{});
         }
-        for (const auto &[clue, weight] : clues)
+#pragma omp for schedule(static)
+        for (const auto &guess : words)
         {
-            auto new_state = state & State(clue);
-            size_t valid_count = 0;
-            for (const auto &it : words)
+            unordered_map<ClueT, uint64_t> clues{};
+            uint64_t expectation = 0;
+            for (const auto &answer : answer_candidates)
             {
-                valid_count += new_state.check(it);
+                ++clues[Clue(guess, answer)];
             }
-            expectation += valid_count * weight;
+            for (const auto &[clue, weight] : clues)
+            {
+                auto new_state = state & State(clue);
+                size_t valid_count = 0;
+                for (const auto &it : words)
+                {
+                    valid_count += new_state.check(it);
+                }
+                expectation += valid_count * weight;
+            }
+            if (expectation > 0)
+            {
+                local_ret.pushpop(std::make_pair(expectation, guess));
+            }
         }
-        if (expectation > 0)
-#pragma omp critical
+#pragma omp critical // join
+        for (auto&& it : local_ret.data())
         {
-            ret.pushpop(std::make_pair(expectation, guess));
+            ret.pushpop(std::move(it));
         }
-#ifdef DEBUG
-        std::cerr << guess.str() << ": " << expectation << std::endl;
-#endif // DEBUG
     }
     return ret;
 }

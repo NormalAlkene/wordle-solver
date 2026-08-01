@@ -1,3 +1,5 @@
+#include <ranges>
+#include <type_traits>
 #ifndef WORDLE_PRIORITY_QUEUE_HPP
 #define WORDLE_PRIORITY_QUEUE_HPP 1
 
@@ -14,12 +16,16 @@ namespace wordle
         std::vector<T>& data();
         const std::vector<T>& data() const;
         void make_heap();
-        void push(T&& value);
+        template <typename U>
+        void push(U&& value);
+        template <std::ranges::viewable_range R>
+        void push(R&& range);
         template <typename... Args>
         void emplace(Args&&... args);
         void pop();
         const T& top() const;
-        void pushpop(T&& value);
+        template <typename U>
+        void pushpop(U&& value);
         bool is_empty() const;
     private:
         std::vector<T> _data;
@@ -44,10 +50,20 @@ namespace wordle
     }
 
     template <typename T, typename Compare>
-    void priority_queue<T, Compare>::push(T&& value)
+    template <typename U>
+    void priority_queue<T, Compare>::push(U&& value)
     {
-        this->_data.push_back(std::forward<T>(value));
+        static_assert(std::is_convertible_v<U, T>);
+        this->_data.push_back(std::forward<U>(value));
         std::ranges::push_heap(this->_data, Compare{});
+    }
+
+    template <typename T, typename Compare>
+    template <std::ranges::viewable_range R>
+    void priority_queue<T, Compare>::push(R&& range)
+    {
+        this->_data.append_range(std::forward<R>(range));
+        this->make_heap();
     }
 
     template <typename T, typename Compare>
@@ -72,14 +88,16 @@ namespace wordle
     }
 
     template <typename T, typename Compare>
-    void priority_queue<T, Compare>::pushpop(T&& value)
+    template <typename U>
+    void priority_queue<T, Compare>::pushpop(U&& value)
     {
+        static_assert(std::is_convertible_v<U, T>);
         Compare compare{};
-        if (compare(this->_data[0], value))
+        if (this->is_empty() || compare(this->_data[0], value))
         {
             return;
         }
-        this->_data.push_back(std::forward<T>(value));
+        this->_data.push_back(std::forward<U>(value));
         std::ranges::pop_heap(this->_data, compare);
         this->_data.pop_back();
     }
