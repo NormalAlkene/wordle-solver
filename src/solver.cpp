@@ -12,13 +12,11 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-#include <queue>
 #include <ranges>
 #include <fstream>
 #include <iostream>
 
 constexpr size_t WORD_LENGTH = 5u;
-constexpr size_t ALPHABET_NUM = 26u;
 constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
 constexpr size_t TOP_K = 5u;
 constexpr size_t SHOW_CANDIDATE_NUM = 20u;
@@ -28,13 +26,12 @@ using std::pair;
 using std::vector;
 using std::string;
 using std::unordered_map;
-//using std::priority_queue;
 
 using namespace wordle;
 
-using WordT = Word<WORD_LENGTH, ALPHABET_NUM>;
-using ClueT = Clue<WORD_LENGTH, ALPHABET_NUM>;
-using StateT = State<WORD_LENGTH, ALPHABET_NUM>;
+using WordT = Word<WORD_LENGTH>;
+using ClueT = Clue<WORD_LENGTH>;
+using StateT = State<WORD_LENGTH>;
 
 vector<WordT> load_words(const std::string &path)
 {

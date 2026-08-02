@@ -3,30 +3,34 @@
 
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <span>
 #include <array>
 #include <string>
+#include <bitset>
 
 namespace wordle{
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
+    inline constexpr auto ALPHABET_NUM = 26u;
+
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
     class Word
     {
         private:
-            std::array<uint32_t, LENGTH> _word{};
-            std::array<int32_t, ALPHABET_NUM> _bincount{};
+            std::array<uint8_t, LENGTH> _word{};
+            std::array<uint8_t, ALPHABET_NUM> _bincount{};
 
             void _calc_bincount(void) noexcept;
 
         public:
             explicit Word() noexcept = default;
-            explicit Word(std::string_view str) noexcept;
-            // explicit Word(std::span<const decltype(_word[0]), LENGTH> word) noexcept;
-            std::span<const int32_t, ALPHABET_NUM> bincount(void) const noexcept;
+            Word(std::string_view str) noexcept;
+            auto bincount(void) const noexcept -> decltype(_bincount);
             std::string str() const noexcept;
-            bool operator==(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
-            std::strong_ordering operator<=>(const Word<LENGTH, ALPHABET_NUM> &other) const noexcept;
-            uint32_t operator[](size_t index) const noexcept;
+            bool operator==(const Word<LENGTH> &other) const noexcept;
+            std::strong_ordering operator<=>(const Word<LENGTH> &other) const noexcept;
+            uint8_t operator[](size_t index) const noexcept;
     };
 
     enum ClueType
@@ -36,54 +40,49 @@ namespace wordle{
         CLUE_GREEN,
     };
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
     class Clue
     {
         private:
-            Word<LENGTH, ALPHABET_NUM> _word{};
+            Word<LENGTH> _word{};
             std::array<ClueType, LENGTH> _clue{};
 
         public:
-            explicit Clue(const Word<LENGTH, ALPHABET_NUM> &word) noexcept;
-            explicit Clue(const Word<LENGTH, ALPHABET_NUM> &guess, const Word<LENGTH, ALPHABET_NUM> &answer) noexcept;
+            explicit Clue(const Word<LENGTH> &word) noexcept;
+            explicit Clue(const Word<LENGTH> &guess, const Word<LENGTH> &answer) noexcept;
 
             void set(std::span<ClueType, LENGTH> value) noexcept;
-            const Word<LENGTH, ALPHABET_NUM> &get_word(void) const noexcept;
-            bool operator==(const Clue<LENGTH, ALPHABET_NUM> &other) const noexcept = default;
+            const Word<LENGTH> &get_word(void) const noexcept;
+            bool operator==(const Clue<LENGTH> &other) const noexcept = default;
             ClueType operator[](size_t index) const noexcept;
             ClueType& operator[](size_t index) noexcept;
     };
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
     class State
     {
         private:
-            std::array<std::array<bool, ALPHABET_NUM>, LENGTH> _possible{};
-            std::array<int32_t, ALPHABET_NUM>_min_count{};
-            std::array<int32_t, ALPHABET_NUM>_max_count{};
+            std::bitset<ALPHABET_NUM * LENGTH> _possible{};
+            std::array<uint8_t, ALPHABET_NUM> _min_count{};
+            std::array<uint8_t, ALPHABET_NUM> _max_count{};
+            static constexpr std::bitset<ALPHABET_NUM * LENGTH> _get_word_mask(uint8_t word_pos);
         public:
             explicit State(void) noexcept;
-            explicit State(const Clue<LENGTH, ALPHABET_NUM> &clue) noexcept;
-            bool check(const Word<LENGTH, ALPHABET_NUM> &word) const noexcept;
-            const decltype(_possible) & get_possible_matrix() const noexcept
-            {
-                return _possible;
-            }
-            const decltype(_min_count) & get_min_count() const noexcept
-            {
-                return _min_count;
-            }
-            const decltype(_max_count) & get_max_count() const noexcept
-            {
-                return _max_count;
-            }
-            State operator&(const State<LENGTH, ALPHABET_NUM> &other) const noexcept;
-            State &operator&=(const State<LENGTH, ALPHABET_NUM> &other) noexcept;
-            bool operator==(const State<LENGTH, ALPHABET_NUM> &other) const noexcept = default;
+            explicit State(const Clue<LENGTH> &clue) noexcept;
+            bool check(const Word<LENGTH> &word) const noexcept;
+            auto get_possible_matrix() const noexcept -> const decltype(_possible)&;
+            auto get_min_count() const noexcept -> const decltype(_possible)&;
+            auto get_max_count() const noexcept -> const decltype(_possible)&;
+            State operator&(const State<LENGTH> &other) const noexcept;
+            State &operator&=(const State<LENGTH> &other) noexcept;
+            bool operator==(const State<LENGTH> &other) const noexcept = default;
     };
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    void Word<LENGTH, ALPHABET_NUM>::_calc_bincount(void) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    void Word<LENGTH>::_calc_bincount(void) noexcept
     {
         this->_bincount.fill(0);
         for (const auto &it : this->_word)
@@ -92,8 +91,9 @@ namespace wordle{
         }
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    Word<LENGTH, ALPHABET_NUM>::Word(std::string_view str) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    Word<LENGTH>::Word(std::string_view str) noexcept
     {
         for (auto i = 0u; i < LENGTH; ++i)
         {
@@ -107,23 +107,16 @@ namespace wordle{
         this->_calc_bincount();
     }
 
-    /*
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    Word<LENGTH, ALPHABET_NUM>::Word(std::span<const decltype(_word[0]), LENGTH> word) noexcept
-    {
-        this->_word = word;
-        this->_calc_bincount();
-    }
-    */
-
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    std::span<const int32_t, ALPHABET_NUM> Word<LENGTH, ALPHABET_NUM>::bincount(void) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    auto Word<LENGTH>::bincount(void) const noexcept -> decltype(_bincount) 
     {
         return this->_bincount;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    std::string Word<LENGTH, ALPHABET_NUM>::str() const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    std::string Word<LENGTH>::str() const noexcept
     {
         auto ret = std::string(LENGTH, 0u);
         for (auto i = 0u; i < LENGTH; ++i)
@@ -133,8 +126,9 @@ namespace wordle{
         return ret;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    bool Word<LENGTH, ALPHABET_NUM>::operator==(const Word &other) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    bool Word<LENGTH>::operator==(const Word &other) const noexcept
     {
         for (auto i = 0u; i < LENGTH; ++i)
         {
@@ -144,8 +138,9 @@ namespace wordle{
         return true;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    std::strong_ordering Word<LENGTH, ALPHABET_NUM>::operator<=>(const Word &other) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    std::strong_ordering Word<LENGTH>::operator<=>(const Word &other) const noexcept
     {
         for (auto i = 0u; i < LENGTH; ++i)
         {
@@ -155,26 +150,29 @@ namespace wordle{
         return std::strong_ordering::equal;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    uint32_t Word<LENGTH, ALPHABET_NUM>::operator[](size_t index) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    uint8_t Word<LENGTH>::operator[](size_t index) const noexcept
     {
         return this->_word[index];
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    Clue<LENGTH, ALPHABET_NUM>::Clue(const Word<LENGTH, ALPHABET_NUM> &word) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    Clue<LENGTH>::Clue(const Word<LENGTH> &word) noexcept
     {
         this->_word = word;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    Clue<LENGTH, ALPHABET_NUM>::Clue(
-        const Word<LENGTH, ALPHABET_NUM> &guess,
-        const Word<LENGTH, ALPHABET_NUM> &answer) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    Clue<LENGTH>::Clue(
+        const Word<LENGTH> &guess,
+        const Word<LENGTH> &answer) noexcept
     {
         this->_word = guess;
         this->_clue.fill(ClueType::CLUE_GRAY);
-        std::array<int32_t, ALPHABET_NUM> temp_bincount;
+        std::array<uint8_t, ALPHABET_NUM> temp_bincount;
         std::ranges::copy(answer.bincount(), temp_bincount.begin());
 
         // 1. Green
@@ -198,43 +196,56 @@ namespace wordle{
         }
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    void Clue<LENGTH, ALPHABET_NUM>::set(std::span<ClueType, LENGTH> value) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    void Clue<LENGTH>::set(std::span<ClueType, LENGTH> value) noexcept
     {
         std::ranges::copy(value, this->_clue.begin());
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    const Word<LENGTH, ALPHABET_NUM> & Clue<LENGTH, ALPHABET_NUM>::get_word(void) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    const Word<LENGTH> & Clue<LENGTH>::get_word(void) const noexcept
     {
         return this->_word;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    ClueType Clue<LENGTH, ALPHABET_NUM>::operator[](size_t index) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    ClueType Clue<LENGTH>::operator[](size_t index) const noexcept
     {
         return this->_clue[index];
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    ClueType& Clue<LENGTH, ALPHABET_NUM>::operator[](size_t index) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    ClueType& Clue<LENGTH>::operator[](size_t index) noexcept
     {
         return this->_clue[index];
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    State<LENGTH, ALPHABET_NUM>::State(void) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    constexpr std::bitset<ALPHABET_NUM * LENGTH> State<LENGTH>::_get_word_mask(uint8_t word_pos)
     {
-        for (auto &it : this->_possible)
-        {
-            it.fill(true);
-        }
+        static_assert(ALPHABET_NUM <= 64u);
+        auto ret = std::bitset<ALPHABET_NUM * LENGTH>((1ull << ALPHABET_NUM) - 1);
+        ret <<= ALPHABET_NUM * word_pos;
+        return ret;
+    }
+
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    State<LENGTH>::State(void) noexcept
+    {
+        this->_possible.set();
         this->_min_count.fill(0);
         this->_max_count.fill(LENGTH);
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    State<LENGTH, ALPHABET_NUM>::State(const Clue<LENGTH, ALPHABET_NUM> &clue) noexcept : State()
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    State<LENGTH>::State(const Clue<LENGTH> &clue) noexcept : State()
     {
         // Green
         for (auto i = 0u; i < LENGTH; ++i)
@@ -242,9 +253,10 @@ namespace wordle{
             if (clue[i] == CLUE_GREEN)
             {
                 auto cur_letter = clue.get_word()[i];
-                this->_possible[i].fill(false);
-                this->_possible[i][cur_letter] = true;
+                this->_possible &= ~State<LENGTH>::_get_word_mask(i);
+                this->_possible.set(ALPHABET_NUM * i + cur_letter);
                 ++this->_min_count[cur_letter];
+                // Other letters
                 ++this->_max_count[cur_letter];
                 for (auto i = 0u; i < ALPHABET_NUM; ++i)
                 {
@@ -260,8 +272,9 @@ namespace wordle{
             auto cur_letter = clue.get_word()[i];
             switch (clue[i]) {
                 case ClueType::CLUE_YELLOW:
-                    this->_possible[i][cur_letter] = false;
+                    this->_possible.reset(ALPHABET_NUM * i + cur_letter);
                     ++this->_min_count[cur_letter];
+                    // Other letters
                     ++this->_max_count[cur_letter];
                     for (auto i = 0u; i < ALPHABET_NUM; ++i)
                     {
@@ -270,7 +283,7 @@ namespace wordle{
                     }
                     break;
                 case ClueType::CLUE_GRAY:
-                    this->_possible[i][cur_letter] = false;
+                    this->_possible.reset(ALPHABET_NUM * i + cur_letter);
                     this->_max_count[cur_letter] = this->_min_count[cur_letter];
                     break;
                 default:
@@ -279,13 +292,14 @@ namespace wordle{
         }
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    bool State<LENGTH, ALPHABET_NUM>::check(const Word<LENGTH, ALPHABET_NUM> &word) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    bool State<LENGTH>::check(const Word<LENGTH> &word) const noexcept
     {
         // 1. Possibility
         for (auto i = 0u; i < LENGTH; ++i)
         {
-            if (!this->_possible[i][word[i]])
+            if (!this->_possible[ALPHABET_NUM * i + word[i]])
                 return false;
         }
 
@@ -298,24 +312,41 @@ namespace wordle{
         return true;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    State<LENGTH, ALPHABET_NUM> State<LENGTH, ALPHABET_NUM>::operator&(const State<LENGTH, ALPHABET_NUM> &other) const noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    auto State<LENGTH>::get_possible_matrix() const noexcept -> const decltype(_possible)&
     {
-        State<LENGTH, ALPHABET_NUM> ret{*this};
+        return _possible;
+    }
+
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    auto State<LENGTH>::get_min_count() const noexcept -> const decltype(_possible)&
+    {
+        return _min_count;
+    }
+
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    auto State<LENGTH>::get_max_count() const noexcept -> const decltype(_possible)&
+    {
+        return _max_count;
+    }
+
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    State<LENGTH> State<LENGTH>::operator&(const State<LENGTH> &other) const noexcept
+    {
+        State<LENGTH> ret{*this};
         ret &= other;
         return ret;
     }
 
-    template <size_t LENGTH, size_t ALPHABET_NUM>
-    State<LENGTH, ALPHABET_NUM> &State<LENGTH, ALPHABET_NUM>::operator&=(const State<LENGTH, ALPHABET_NUM> &other) noexcept
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    State<LENGTH> &State<LENGTH>::operator&=(const State<LENGTH> &other) noexcept
     {
-        for (auto i = 0u; i < LENGTH; ++i)
-        {
-            for (auto j = 0u; j < ALPHABET_NUM; ++j)
-            {
-                this->_possible[i][j] = this->_possible[i][j] && other._possible[i][j];
-            }
-        }
+        this->_possible &= other._possible;
         for (auto i = 0u; i < ALPHABET_NUM; ++i)
         {
             this->_min_count[i] = std::max(this->_min_count[i], other._min_count[i]);
@@ -325,66 +356,72 @@ namespace wordle{
             this->_max_count[i] = std::min(this->_max_count[i], other._max_count[i]);
         }
 
-        int32_t sum = 0;
+        uint8_t sum = 0;
         for (const auto &it : this->_min_count)
         {
             sum += it;
         }
         for (auto i = 0u; i < ALPHABET_NUM; ++i)
         {
-            this->_max_count[i] = std::min(static_cast<int32_t>(LENGTH) + this->_min_count[i] - sum, this->_max_count[i]);
+            this->_max_count[i] = std::min(static_cast<uint8_t>(LENGTH + this->_min_count[i] - sum), this->_max_count[i]);
         }
         return *this;
     }
 
 } // namespace wordle
 
-template <size_t LENGTH, size_t ALPHABET_NUM>
-struct std::hash<wordle::Word<LENGTH, ALPHABET_NUM>>
+template <size_t LENGTH>
+requires (LENGTH < std::numeric_limits<uint8_t>::max())
+struct std::hash<wordle::Word<LENGTH>>
 {
-    size_t operator()(const wordle::Word<LENGTH, ALPHABET_NUM> &object) const;
+    size_t operator()(const wordle::Word<LENGTH> &object) const;
 };
 
-template <size_t LENGTH, size_t ALPHABET_NUM>
-struct std::hash<wordle::Clue<LENGTH, ALPHABET_NUM>>
+template <size_t LENGTH>
+requires (LENGTH < std::numeric_limits<uint8_t>::max())
+struct std::hash<wordle::Clue<LENGTH>>
 {
-    size_t operator()(const wordle::Clue<LENGTH, ALPHABET_NUM> &object) const;
+    size_t operator()(const wordle::Clue<LENGTH> &object) const;
 };
 
-template <size_t LENGTH, size_t ALPHABET_NUM>
-struct std::hash<wordle::State<LENGTH, ALPHABET_NUM>>
+template <size_t LENGTH>
+requires (LENGTH < std::numeric_limits<uint8_t>::max())
+struct std::hash<wordle::State<LENGTH>>
 {
-    size_t operator()(const wordle::State<LENGTH, ALPHABET_NUM> &object) const;
+    size_t operator()(const wordle::State<LENGTH> &object) const;
 };
 
-template <size_t LENGTH, size_t ALPHABET_NUM>
-size_t std::hash<wordle::Word<LENGTH, ALPHABET_NUM>>::operator()(const wordle::Word<LENGTH, ALPHABET_NUM> &object) const
+template <size_t LENGTH>
+requires (LENGTH < std::numeric_limits<uint8_t>::max())
+size_t std::hash<wordle::Word<LENGTH>>::operator()(const wordle::Word<LENGTH> &object) const
 {
     size_t ret = 0u;
     size_t coefficient = 1u;
     for (auto i = 0u; i < LENGTH; ++i)
     {
         ret += coefficient * object[i];
-        coefficient *= ALPHABET_NUM;
+        coefficient *= wordle::ALPHABET_NUM;
     }
     return ret;
 }
 
-template <size_t LENGTH, size_t ALPHABET_NUM>
-size_t std::hash<wordle::Clue<LENGTH, ALPHABET_NUM>>::operator()(const wordle::Clue<LENGTH, ALPHABET_NUM> &object) const
+template <size_t LENGTH>
+requires (LENGTH < std::numeric_limits<uint8_t>::max())
+size_t std::hash<wordle::Clue<LENGTH>>::operator()(const wordle::Clue<LENGTH> &object) const
 {
     size_t ret = 0u;
     size_t coefficient = 1u;
     for (auto i = 0u; i < LENGTH; ++i)
     {
         ret += coefficient * (static_cast<size_t>(object[i]) + 1) * object.get_word()[i];
-        coefficient *= ALPHABET_NUM * 3;
+        coefficient *= wordle::ALPHABET_NUM * 3;
     }
     return ret;
 }
 
-template <size_t LENGTH, size_t ALPHABET_NUM>
-size_t std::hash<wordle::State<LENGTH, ALPHABET_NUM>>::operator()(const wordle::State<LENGTH, ALPHABET_NUM> &object) const
+template <size_t LENGTH>
+requires (LENGTH < std::numeric_limits<uint8_t>::max())
+size_t std::hash<wordle::State<LENGTH>>::operator()(const wordle::State<LENGTH> &object) const
 {
     // TODO
 }
