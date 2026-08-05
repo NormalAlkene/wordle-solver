@@ -13,9 +13,11 @@
 namespace wordle{
 
     inline constexpr auto ALPHABET_NUM = 26u;
+    template <size_t LENGTH>
+    concept ValidLength = (LENGTH < std::numeric_limits<uint8_t>::max());
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     class Word
     {
         private:
@@ -42,7 +44,7 @@ namespace wordle{
     };
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     struct WordWeight
     {
         Word<LENGTH> word;
@@ -57,7 +59,7 @@ namespace wordle{
     };
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     class Clue
     {
         private:
@@ -83,7 +85,7 @@ namespace wordle{
     };
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     class State
     {
         private:
@@ -94,6 +96,7 @@ namespace wordle{
         public:
             explicit State(void) noexcept;
             explicit State(const Clue<LENGTH> &clue) noexcept;
+            explicit State(const Word<LENGTH> &guess, const Word<LENGTH> &answer) noexcept;
             bool check(const Word<LENGTH> &word) const noexcept;
             auto get_possible_matrix() const noexcept -> const decltype(_possible)&
             {
@@ -116,7 +119,7 @@ namespace wordle{
     };
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     void Word<LENGTH>::_calc_bincount(void) noexcept
     {
         this->_bincount.fill(0);
@@ -127,7 +130,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     Word<LENGTH>::Word(std::string_view str) noexcept
     {
         for (auto i = 0u; i < LENGTH; ++i)
@@ -143,7 +146,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     std::string Word<LENGTH>::str() const noexcept
     {
         auto ret = std::string(LENGTH, 0u);
@@ -155,7 +158,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     bool Word<LENGTH>::operator==(const Word &other) const noexcept
     {
         for (auto i = 0u; i < LENGTH; ++i)
@@ -167,7 +170,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     std::strong_ordering Word<LENGTH>::operator<=>(const Word &other) const noexcept
     {
         for (auto i = 0u; i < LENGTH; ++i)
@@ -179,14 +182,14 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     Clue<LENGTH>::Clue(const Word<LENGTH> &word) noexcept
     {
         this->_word = word;
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     Clue<LENGTH>::Clue(
         const Word<LENGTH> &guess,
         const Word<LENGTH> &answer) noexcept
@@ -218,21 +221,21 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     void Clue<LENGTH>::set(std::span<ClueType, LENGTH> value) noexcept
     {
         std::ranges::copy(value, this->_clue.begin());
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     const Word<LENGTH> & Clue<LENGTH>::get_word(void) const noexcept
     {
         return this->_word;
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     constexpr std::bitset<ALPHABET_NUM * LENGTH> State<LENGTH>::_get_word_mask(uint8_t word_pos)
     {
         static_assert(ALPHABET_NUM <= 64u);
@@ -242,7 +245,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     State<LENGTH>::State(void) noexcept
     {
         this->_possible.set();
@@ -251,7 +254,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     State<LENGTH>::State(const Clue<LENGTH> &clue) noexcept : State()
     {
         // Green
@@ -300,7 +303,15 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
+    State<LENGTH>::State(const Word<LENGTH> &guess, const Word<LENGTH> &answer) noexcept
+    : State(Clue(guess, answer)) // TODO
+    {
+        // TODO
+    }
+
+    template <size_t LENGTH>
+    requires ValidLength<LENGTH>
     bool State<LENGTH>::check(const Word<LENGTH> &word) const noexcept
     {
         // 1. Possibility
@@ -320,7 +331,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     State<LENGTH> State<LENGTH>::operator&(const State<LENGTH> &other) const noexcept
     {
         State<LENGTH> ret{*this};
@@ -329,7 +340,7 @@ namespace wordle{
     }
 
     template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    requires ValidLength<LENGTH>
     State<LENGTH> &State<LENGTH>::operator&=(const State<LENGTH> &other) noexcept
     {
         this->_possible &= other._possible;
@@ -357,7 +368,7 @@ namespace wordle{
 } // namespace wordle
 
 template <size_t LENGTH>
-requires (LENGTH < std::numeric_limits<uint8_t>::max())
+requires wordle::ValidLength<LENGTH>
 struct std::hash<wordle::Word<LENGTH>>
 {
     size_t operator()(const wordle::Word<LENGTH> &object) const
@@ -375,7 +386,7 @@ struct std::hash<wordle::Word<LENGTH>>
 };
 
 template <size_t LENGTH>
-requires (LENGTH < std::numeric_limits<uint8_t>::max())
+requires wordle::ValidLength<LENGTH>
 struct std::hash<wordle::Clue<LENGTH>>
 {
     size_t operator()(const wordle::Clue<LENGTH> &object) const
@@ -392,7 +403,7 @@ struct std::hash<wordle::Clue<LENGTH>>
 };
 
 template <size_t LENGTH>
-requires (LENGTH < std::numeric_limits<uint8_t>::max())
+requires wordle::ValidLength<LENGTH>
 struct std::hash<wordle::State<LENGTH>>
 {
     size_t operator()(const wordle::State<LENGTH> &object) const

@@ -58,21 +58,21 @@ priority_queue<pair<float, WordT>> pick_words(
 #pragma omp for schedule(static)
         for (const auto &guess : words)
         {
-            unordered_map<ClueT, float> clues{};
+            unordered_map<StateT, float> states;
             float expectation = 0;
             for (const auto &answer : answer_candidates)
             {
-                clues[Clue(guess, answer.word)] += answer.weight;
+                states[State(guess, answer.word)] += answer.weight;
             }
-            for (const auto &[clue, clue_weight] : clues)
+            for (const auto &[state, state_weight] : states)
             {
-                auto new_state = state & State(clue);
+                auto new_state = state & state;
                 float valid_weight = 0;
                 for (const auto &[word, answer_weight] : answer_candidates)
                 {
                     valid_weight += new_state.check(word) * answer_weight;
                 }
-                expectation += valid_weight * clue_weight / sum_weight;
+                expectation += valid_weight * state_weight / sum_weight;
             }
             if (expectation > EPSILON)
             {
