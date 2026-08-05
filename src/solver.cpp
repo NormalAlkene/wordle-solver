@@ -32,7 +32,7 @@ using ClueT = Clue<WORD_LENGTH>;
 using StateT = State<WORD_LENGTH>;
 
 priority_queue<pair<float, WordT>> pick_words(
-    const StateT &state,
+    const StateT &cur_state,
     span<const WordWeightT> answer_candidates,
     span<const WordT> words,
     size_t top_k = 1)
@@ -43,7 +43,8 @@ priority_queue<pair<float, WordT>> pick_words(
         sum_weight += it.weight;
     }
 
-    priority_queue<pair<float, WordT>> ret{};
+    decltype(pick_words(cur_state, answer_candidates, words)) ret{};
+    ret.data().reserve(top_k);
     for (auto i = 0u; i < top_k; ++i)
     {
         ret.emplace(std::numeric_limits<float>::infinity(), WordT{});
@@ -66,7 +67,7 @@ priority_queue<pair<float, WordT>> pick_words(
             }
             for (const auto &[state, state_weight] : states)
             {
-                auto new_state = state & state;
+                auto new_state = cur_state & state;
                 float valid_weight = 0;
                 for (const auto &[word, answer_weight] : answer_candidates)
                 {
@@ -88,6 +89,25 @@ priority_queue<pair<float, WordT>> pick_words(
     return ret;
 }
 
+priority_queue<pair<float, WordT>> pick_words(
+    span<const float> scores,
+    span<const WordT> words,
+    size_t top_k = 1)
+{
+    priority_queue<pair<float, WordT>> ret{};
+    ret.data().reserve(top_k);
+    for (auto i = 0u; i < top_k; ++i)
+    {
+        ret.emplace(std::numeric_limits<float>::infinity(), WordT{});
+    }
+    for (auto i = 0u; i < scores.size(); ++i)
+    {
+        ret.pushpop(std::make_pair(scores[i], words[i]));
+    }
+    return ret;
+}
+
+
 int main(int argc, char *argv[])
 {
     using std::cin, std::cout, std::cerr, std::endl;
@@ -103,17 +123,28 @@ int main(int argc, char *argv[])
 
     vector<WordT> words;
     vector<WordWeightT> answer_candidates;
-    if (!load_cache(word_list_path, words, answer_candidates))
+    vector<float> first_scores;
+    if (!load_cache(word_list_path, words, answer_candidates, first_scores))
     {
         cerr << "Invalid cache file: " << word_list_path << '.' << endl;
         return 1;
     }
 
     StateT state{};
+    bool is_first = true;
     for (;;)
     {
         // cerr << "Current count answer cadidates is: " << answer_candidates.size() << endl;
-        auto suggestions = pick_words(state, answer_candidates, words, TOP_K);
+        decltype(pick_words(first_scores, words, TOP_K)) suggestions;
+        if (is_first)
+        {
+            suggestions = pick_words(first_scores, words, TOP_K);
+            is_first = false;
+        }
+        else
+        {
+            suggestions = pick_words(state, answer_candidates, words, TOP_K);
+        }
         cerr << "Top " << TOP_K << " guess candidates:" << endl;
         string guess_word;
         while (!suggestions.is_empty())

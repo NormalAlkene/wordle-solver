@@ -263,7 +263,7 @@ namespace wordle{
             if (clue[i] == CLUE_GREEN)
             {
                 auto cur_letter = clue.get_word()[i];
-                this->_possible &= ~State<LENGTH>::_get_word_mask(i);
+                this->_possible &= ~_get_word_mask(i);
                 this->_possible.set(ALPHABET_NUM * i + cur_letter);
                 ++this->_min_count[cur_letter];
                 // Other letters
@@ -305,9 +305,41 @@ namespace wordle{
     template <size_t LENGTH>
     requires ValidLength<LENGTH>
     State<LENGTH>::State(const Word<LENGTH> &guess, const Word<LENGTH> &answer) noexcept
-    : State(Clue(guess, answer)) // TODO
+    : State()
     {
-        // TODO
+        for (auto i = 0u; i < LENGTH; ++i)
+        {
+            auto cur_letter = i * ALPHABET_NUM + guess[i];
+            if (guess[i] == answer[i])
+            {
+                this->_possible &= ~_get_word_mask(i);
+                this->_possible.set(cur_letter);
+            }
+            else
+            {
+                this->_possible.reset(cur_letter);
+            }
+        }
+        uint8_t sum_bincount = 0u;
+        for (auto i = 0u; i < ALPHABET_NUM; ++i)
+        {
+            if (guess.bincount()[i] > 0)
+            {
+                if (guess.bincount()[i] <= answer.bincount()[i])
+                {
+                    this->_min_count[i] = guess.bincount()[i];
+                }
+                else
+                {
+                    this->_max_count[i] = this->_min_count[i] = answer.bincount()[i];
+                }
+                sum_bincount += this->_min_count[i];
+            }
+        }
+        for (auto i = 0u; i < ALPHABET_NUM; ++i)
+        {
+            this->_max_count[i] = std::min(static_cast<uint8_t>(LENGTH + this->_min_count[i] - sum_bincount), this->_max_count[i]);
+        }
     }
 
     template <size_t LENGTH>
@@ -332,7 +364,7 @@ namespace wordle{
 
     template <size_t LENGTH>
     requires ValidLength<LENGTH>
-    State<LENGTH> State<LENGTH>::operator&(const State<LENGTH> &other) const noexcept
+    inline State<LENGTH> State<LENGTH>::operator&(const State<LENGTH> &other) const noexcept
     {
         State<LENGTH> ret{*this};
         ret &= other;
