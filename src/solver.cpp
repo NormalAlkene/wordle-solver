@@ -6,21 +6,17 @@
 #include "priority_queue.hpp"
 
 #include <cstddef>
-#include <cstdint>
 #include <limits>
 #include <omp.h>
 #include <cctype>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <vector>
 #include <ranges>
-#include <fstream>
 #include <iostream>
 
 constexpr size_t TOP_K = 5u;
 constexpr size_t SHOW_CANDIDATE_NUM = 20u;
-constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
 
 using std::span;
 using std::pair;
@@ -35,44 +31,50 @@ using WordWeightT = WordWeight<WORD_LENGTH>;
 using ClueT = Clue<WORD_LENGTH>;
 using StateT = State<WORD_LENGTH>;
 
-priority_queue<pair<uint64_t, WordT>> pick_words(
+priority_queue<pair<float, WordT>> pick_words(
     const StateT &state,
     span<const WordWeightT> answer_candidates,
     span<const WordT> words,
     size_t top_k = 1)
 {
-    priority_queue<pair<uint64_t, WordT>> ret{};
+    float sum_weight = 0.0f;
+    for (const auto &it : answer_candidates)
+    {
+        sum_weight += it.weight;
+    }
+
+    priority_queue<pair<float, WordT>> ret{};
     for (auto i = 0u; i < top_k; ++i)
     {
-        ret.emplace(std::numeric_limits<uint64_t>::max(), WordT{});
+        ret.emplace(std::numeric_limits<float>::infinity(), WordT{});
     }
 #pragma omp parallel 
     {
         decltype(ret) local_ret(ret);
         for (auto i = 0u; i < top_k; ++i)
         {
-            local_ret.emplace(std::numeric_limits<uint64_t>::max(), WordT{});
+            local_ret.emplace(std::numeric_limits<float>::infinity(), WordT{});
         }
 #pragma omp for schedule(static)
         for (const auto &guess : words)
         {
-            unordered_map<ClueT, uint64_t> clues{};
-            uint64_t expectation = 0;
+            unordered_map<ClueT, float> clues{};
+            float expectation = 0;
             for (const auto &answer : answer_candidates)
             {
-                ++clues[Clue(guess, answer.word)]; // TODO: weight
+                clues[Clue(guess, answer.word)] += answer.weight;
             }
-            for (const auto &[clue, weight] : clues)
+            for (const auto &[clue, clue_weight] : clues)
             {
                 auto new_state = state & State(clue);
-                size_t valid_count = 0;
-                for (const auto &it : words)
+                float valid_weight = 0;
+                for (const auto &[word, answer_weight] : answer_candidates)
                 {
-                    valid_count += new_state.check(it);
+                    valid_weight += new_state.check(word) * answer_weight;
                 }
-                expectation += valid_count * weight;
+                expectation += valid_weight * clue_weight / sum_weight;
             }
-            if (expectation > 0)
+            if (expectation > EPSILON)
             {
                 local_ret.pushpop(std::make_pair(expectation, guess));
             }
@@ -117,7 +119,7 @@ int main(int argc, char *argv[])
         while (!suggestions.is_empty())
         {
             const auto &it = suggestions.top();
-            cerr << it.second.str() << ": " << static_cast<double>(it.first) / answer_candidates.size() << endl;
+            cerr << it.second.str() << ": " << it.first << endl;
             guess_word = it.second.str();
             suggestions.pop();
         }

@@ -9,7 +9,6 @@
 
 constexpr uint32_t HEADER = 0xCA005357u; // 'W' 'S'
 constexpr uint16_t VERSION = 1u;
-constexpr float EPSILON = 1e-4;
 
 using namespace wordle;
 using std::ios;
