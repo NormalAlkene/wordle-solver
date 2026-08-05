@@ -100,12 +100,12 @@ namespace wordle{
                 return _possible;
             }
 
-            auto get_min_count() const noexcept -> const decltype(_possible)&
+            auto get_min_count() const noexcept -> const decltype(_min_count)&
             {
                 return _min_count;
             }
 
-            auto get_max_count() const noexcept -> const decltype(_possible)&
+            auto get_max_count() const noexcept -> const decltype(_max_count)&
             {
                 return _max_count;
             }
@@ -397,8 +397,8 @@ struct std::hash<wordle::State<LENGTH>>
 {
     size_t operator()(const wordle::State<LENGTH> &object) const
     {
-        size_t seed = 0;
-        boost::hash_combine(seed, object.get_possible_matrix());
+        size_t seed = std::hash<std::bitset<LENGTH * wordle::ALPHABET_NUM>>()(object.get_possible_matrix());
+        // boost::hash_combine(seed, object.get_possible_matrix());
         boost::hash_combine(seed, object.get_min_count());
         boost::hash_combine(seed, object.get_max_count());
         return seed;
