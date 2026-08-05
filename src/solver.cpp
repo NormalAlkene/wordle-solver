@@ -1,9 +1,11 @@
 // #define DEBUG 1
 
+#include "common.hpp"
 #include "model.hpp"
 #include "cache.hpp"
 #include "priority_queue.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <omp.h>
@@ -16,10 +18,9 @@
 #include <fstream>
 #include <iostream>
 
-constexpr size_t WORD_LENGTH = 5u;
-constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
 constexpr size_t TOP_K = 5u;
 constexpr size_t SHOW_CANDIDATE_NUM = 20u;
+constexpr size_t RESERVE_WORD_LIST_SIZE = 10000u;
 
 using std::span;
 using std::pair;
@@ -30,31 +31,13 @@ using std::unordered_map;
 using namespace wordle;
 
 using WordT = Word<WORD_LENGTH>;
+using WordWeightT = WordWeight<WORD_LENGTH>;
 using ClueT = Clue<WORD_LENGTH>;
 using StateT = State<WORD_LENGTH>;
 
-vector<WordT> load_words(const std::string &path)
-{
-    std::ifstream file(path);
-    vector<WordT> ret{};
-
-    if (!file)
-        return ret;
-
-    std::string line;
-    line.reserve(WORD_LENGTH + 1);
-    ret.reserve(RESERVE_WORD_LIST_SIZE);
-    while (std::getline(file, line))
-    {
-        ret.emplace_back(std::string_view(line));
-    }
-
-    return ret;
-}
-
 priority_queue<pair<uint64_t, WordT>> pick_words(
     const StateT &state,
-    span<const WordT> answer_candidates,
+    span<const WordWeightT> answer_candidates,
     span<const WordT> words,
     size_t top_k = 1)
 {
@@ -77,7 +60,7 @@ priority_queue<pair<uint64_t, WordT>> pick_words(
             uint64_t expectation = 0;
             for (const auto &answer : answer_candidates)
             {
-                ++clues[Clue(guess, answer)];
+                ++clues[Clue(guess, answer.word)]; // TODO: weight
             }
             for (const auto &[clue, weight] : clues)
             {
@@ -106,15 +89,23 @@ priority_queue<pair<uint64_t, WordT>> pick_words(
 int main(int argc, char *argv[])
 {
     using std::cin, std::cout, std::cerr, std::endl;
-    cerr << "Loading word list..." << endl;
-    string word_list_path = "./data/word_list.txt";
+    string word_list_path = "./data/cache.dat";
     if (argc > 1)
     {
         word_list_path = argv[1];
     }
+    else
+    {
+        cerr << "Cache file is not specified, using default: " << word_list_path << '.' << endl;
+    }
 
-    auto words = load_words(word_list_path);
-    auto answer_candidates = vector(words);
+    vector<WordT> words;
+    vector<WordWeightT> answer_candidates;
+    if (!load_cache(word_list_path, words, answer_candidates))
+    {
+        cerr << "Invalid cache file: " << word_list_path << '.' << endl;
+        return 1;
+    }
 
     StateT state{};
     for (;;)
@@ -166,7 +157,7 @@ int main(int argc, char *argv[])
         state &= State(clue);
         answer_candidates = 
             answer_candidates
-            | std::views::filter( [&state](auto x){return state.check(x);})
+            | std::views::filter( [&state](auto x){return state.check(x.word);})
             | std::ranges::to<vector>();
 
         cerr << "Candidates (total " << answer_candidates.size() << "): ";
@@ -175,13 +166,13 @@ int main(int argc, char *argv[])
         {
             if (i >= SHOW_CANDIDATE_NUM)
                 break;
-            cerr << it.str() << ' ';
+            cerr << it.word.str() << ' ';
             ++i;
         }
         cerr << endl;
         if (answer_candidates.size() == 1)
         {
-            cerr << "Answer: " << answer_candidates[0].str() << endl;
+            cerr << "Answer: " << answer_candidates[0].word.str() << endl;
             break;
         }
         else if (answer_candidates.size() == 0)

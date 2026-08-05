@@ -8,6 +8,7 @@
 #include <array>
 #include <string>
 #include <bitset>
+#include <boost/container_hash/hash.hpp>
 
 namespace wordle{
 
@@ -26,11 +27,26 @@ namespace wordle{
         public:
             explicit Word() noexcept = default;
             Word(std::string_view str) noexcept;
-            auto bincount(void) const noexcept -> decltype(_bincount);
+            auto bincount(void) const noexcept -> decltype(_bincount)
+            {
+                return this->_bincount;
+            }
+
             std::string str() const noexcept;
             bool operator==(const Word<LENGTH> &other) const noexcept;
             std::strong_ordering operator<=>(const Word<LENGTH> &other) const noexcept;
-            uint8_t operator[](size_t index) const noexcept;
+            uint8_t operator[](size_t index) const noexcept
+            {
+                return this->_word[index];
+            }
+    };
+
+    template <size_t LENGTH>
+    requires (LENGTH < std::numeric_limits<uint8_t>::max())
+    struct WordWeight
+    {
+        Word<LENGTH> word;
+        float weight;
     };
 
     enum ClueType
@@ -55,8 +71,15 @@ namespace wordle{
             void set(std::span<ClueType, LENGTH> value) noexcept;
             const Word<LENGTH> &get_word(void) const noexcept;
             bool operator==(const Clue<LENGTH> &other) const noexcept = default;
-            ClueType operator[](size_t index) const noexcept;
-            ClueType& operator[](size_t index) noexcept;
+            ClueType operator[](size_t index) const noexcept
+            {
+                return this->_clue[index];
+            }
+            ClueType& operator[](size_t index) noexcept
+            {
+                return this->_clue[index];
+            }
+
     };
 
     template <size_t LENGTH>
@@ -72,9 +95,21 @@ namespace wordle{
             explicit State(void) noexcept;
             explicit State(const Clue<LENGTH> &clue) noexcept;
             bool check(const Word<LENGTH> &word) const noexcept;
-            auto get_possible_matrix() const noexcept -> const decltype(_possible)&;
-            auto get_min_count() const noexcept -> const decltype(_possible)&;
-            auto get_max_count() const noexcept -> const decltype(_possible)&;
+            auto get_possible_matrix() const noexcept -> const decltype(_possible)&
+            {
+                return _possible;
+            }
+
+            auto get_min_count() const noexcept -> const decltype(_possible)&
+            {
+                return _min_count;
+            }
+
+            auto get_max_count() const noexcept -> const decltype(_possible)&
+            {
+                return _max_count;
+            }
+
             State operator&(const State<LENGTH> &other) const noexcept;
             State &operator&=(const State<LENGTH> &other) noexcept;
             bool operator==(const State<LENGTH> &other) const noexcept = default;
@@ -105,13 +140,6 @@ namespace wordle{
                 this->_word[i] = 0u;
         }
         this->_calc_bincount();
-    }
-
-    template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
-    auto Word<LENGTH>::bincount(void) const noexcept -> decltype(_bincount) 
-    {
-        return this->_bincount;
     }
 
     template <size_t LENGTH>
@@ -148,13 +176,6 @@ namespace wordle{
                 return cmp;
         }
         return std::strong_ordering::equal;
-    }
-
-    template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
-    uint8_t Word<LENGTH>::operator[](size_t index) const noexcept
-    {
-        return this->_word[index];
     }
 
     template <size_t LENGTH>
@@ -208,20 +229,6 @@ namespace wordle{
     const Word<LENGTH> & Clue<LENGTH>::get_word(void) const noexcept
     {
         return this->_word;
-    }
-
-    template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
-    ClueType Clue<LENGTH>::operator[](size_t index) const noexcept
-    {
-        return this->_clue[index];
-    }
-
-    template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
-    ClueType& Clue<LENGTH>::operator[](size_t index) noexcept
-    {
-        return this->_clue[index];
     }
 
     template <size_t LENGTH>
@@ -314,27 +321,6 @@ namespace wordle{
 
     template <size_t LENGTH>
     requires (LENGTH < std::numeric_limits<uint8_t>::max())
-    auto State<LENGTH>::get_possible_matrix() const noexcept -> const decltype(_possible)&
-    {
-        return _possible;
-    }
-
-    template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
-    auto State<LENGTH>::get_min_count() const noexcept -> const decltype(_possible)&
-    {
-        return _min_count;
-    }
-
-    template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
-    auto State<LENGTH>::get_max_count() const noexcept -> const decltype(_possible)&
-    {
-        return _max_count;
-    }
-
-    template <size_t LENGTH>
-    requires (LENGTH < std::numeric_limits<uint8_t>::max())
     State<LENGTH> State<LENGTH>::operator&(const State<LENGTH> &other) const noexcept
     {
         State<LENGTH> ret{*this};
@@ -374,57 +360,50 @@ template <size_t LENGTH>
 requires (LENGTH < std::numeric_limits<uint8_t>::max())
 struct std::hash<wordle::Word<LENGTH>>
 {
-    size_t operator()(const wordle::Word<LENGTH> &object) const;
+    size_t operator()(const wordle::Word<LENGTH> &object) const
+    {
+        size_t ret = 0u;
+        size_t coefficient = 1u;
+        for (auto i = 0u; i < LENGTH; ++i)
+        {
+            ret += coefficient * object[i];
+            coefficient *= wordle::ALPHABET_NUM;
+        }
+        return ret;
+    }
+
 };
 
 template <size_t LENGTH>
 requires (LENGTH < std::numeric_limits<uint8_t>::max())
 struct std::hash<wordle::Clue<LENGTH>>
 {
-    size_t operator()(const wordle::Clue<LENGTH> &object) const;
+    size_t operator()(const wordle::Clue<LENGTH> &object) const
+    {
+        size_t ret = 0u;
+        size_t coefficient = 1u;
+        for (auto i = 0u; i < LENGTH; ++i)
+        {
+            ret += coefficient * (static_cast<size_t>(object[i]) + 1) * object.get_word()[i];
+            coefficient *= wordle::ALPHABET_NUM * 3;
+        }
+        return ret;
+    }
 };
 
 template <size_t LENGTH>
 requires (LENGTH < std::numeric_limits<uint8_t>::max())
 struct std::hash<wordle::State<LENGTH>>
 {
-    size_t operator()(const wordle::State<LENGTH> &object) const;
+    size_t operator()(const wordle::State<LENGTH> &object) const
+    {
+        size_t seed = 0;
+        boost::hash_combine(seed, object.get_possible_matrix());
+        boost::hash_combine(seed, object.get_min_count());
+        boost::hash_combine(seed, object.get_max_count());
+        return seed;
+    }
 };
-
-template <size_t LENGTH>
-requires (LENGTH < std::numeric_limits<uint8_t>::max())
-size_t std::hash<wordle::Word<LENGTH>>::operator()(const wordle::Word<LENGTH> &object) const
-{
-    size_t ret = 0u;
-    size_t coefficient = 1u;
-    for (auto i = 0u; i < LENGTH; ++i)
-    {
-        ret += coefficient * object[i];
-        coefficient *= wordle::ALPHABET_NUM;
-    }
-    return ret;
-}
-
-template <size_t LENGTH>
-requires (LENGTH < std::numeric_limits<uint8_t>::max())
-size_t std::hash<wordle::Clue<LENGTH>>::operator()(const wordle::Clue<LENGTH> &object) const
-{
-    size_t ret = 0u;
-    size_t coefficient = 1u;
-    for (auto i = 0u; i < LENGTH; ++i)
-    {
-        ret += coefficient * (static_cast<size_t>(object[i]) + 1) * object.get_word()[i];
-        coefficient *= wordle::ALPHABET_NUM * 3;
-    }
-    return ret;
-}
-
-template <size_t LENGTH>
-requires (LENGTH < std::numeric_limits<uint8_t>::max())
-size_t std::hash<wordle::State<LENGTH>>::operator()(const wordle::State<LENGTH> &object) const
-{
-    // TODO
-}
 
 #endif /* WORDLE_MODEL_HPP */
 

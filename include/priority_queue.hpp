@@ -1,8 +1,8 @@
-#include <ranges>
-#include <type_traits>
 #ifndef WORDLE_PRIORITY_QUEUE_HPP
 #define WORDLE_PRIORITY_QUEUE_HPP 1
 
+#include <ranges>
+#include <type_traits>
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -70,7 +70,7 @@ namespace wordle
     template <typename... Args>
     void priority_queue<T, Compare>::emplace(Args&&... args)
     {
-        this->_data.emplace_back(std::forward<Args>(args)...); // TODO
+        this->_data.emplace_back(std::forward<Args>(args)...);
         std::ranges::push_heap(this->_data, Compare{});
     }
 
